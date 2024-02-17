@@ -5,25 +5,15 @@ import (
 	"net"
 )
 
-type Message struct {
-	cmd  string
-	data []byte
-}
-
-func makeMessage(cmd string, data string) *Message {
-	return &Message{
-		cmd:  cmd,
-		data: make([]byte, len(data)),
-	}
-}
-
 func main() {
-	Message1 := makeMessage("Login", "username:bob@password:pass1")
+	LOGIN_Message := MakeMessage("LOGIN", "username=bob;password=pass1")
+	LOGOUT_Message := MakeMessage("LOGOUT", "username=bob")
 
 	conn, err := net.Dial("tcp", "localhost:50000")
 	if err != nil {
 		fmt.Println("Accept Error: ", err)
 	}
-	conn.Write(Message1.data)
+	conn.Write(LOGIN_Message.GenerateBinaryMessage())
+	conn.Write(LOGOUT_Message.GenerateBinaryMessage())
 	conn.Close()
 }
