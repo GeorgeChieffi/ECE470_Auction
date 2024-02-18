@@ -42,7 +42,7 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	// defer ln.Close()
+	defer ln.Close()
 	s.ln = ln
 
 	go s.acceptLoop()
@@ -62,7 +62,7 @@ func (s *Server) acceptLoop() {
 		}
 
 		fmt.Println("new connection to the server: ", conn.RemoteAddr())
-
+		// conn.Write(MakeRespose("Hello Client!").GenerateBinaryMessage())
 		go s.readLoop(conn)
 	}
 }
@@ -78,7 +78,6 @@ func (s *Server) readLoop(conn net.Conn) {
 			if err != nil {
 				if err == io.EOF {
 					fmt.Printf("Client %s Disconnected\n", conn.RemoteAddr())
-					conn.Close()
 					break
 				}
 				fmt.Println(err)
@@ -121,8 +120,8 @@ func (s *Server) readLoop(conn net.Conn) {
 				Type:   string(command),
 				Data:   string(message),
 			}
-			// fmt.Print("Command: ", string(command))
-			// fmt.Println("\tData: ", string(message))
+
+			go s.handleMessage()
 
 			foundLength = false
 			messageLength = 0
@@ -130,6 +129,10 @@ func (s *Server) readLoop(conn net.Conn) {
 	}
 }
 
-// func handleMessage() {
-
-// }
+func (s *Server) handleMessage() {
+	for m := range s.msgch {
+		fmt.Printf("[%s]%s: %s\n", m.Sender.RemoteAddr(), m.Type, m.Data)
+		fmt.Print("Sending Confirmation ...\n\n")
+		m.Sender.Write(MakeRespose("Recieved your command " + m.Type).GenerateBinaryMessage())
+	}
+}

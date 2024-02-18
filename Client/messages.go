@@ -27,18 +27,5 @@ func (m *Message) GenerateBinaryMessage() []byte {
 
 	bytes := append(append(append(dataBuff, CMDBuff...), []byte(m.Type)...), []byte(m.Data)...)
 
-	// size := len(m.Data) + 4
-	// header := fmt.Sprintf("%04d%s", size, m.Type)
-	// var buf bytes.Buffer
-	// buf.WriteString(header)
-	// buf.Write(m.Data)
 	return bytes
 }
-
-// func BinaryToMessage(binary []byte) *Message {
-// 	if len(binary) < 4 {
-// 		panic("Recieved Invalid Message")
-// 	}
-
-// 	return MakeMessage()
-// }
