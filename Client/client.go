@@ -4,16 +4,21 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 )
 
 type Client struct {
-	dialAddr string
-	conn     net.Conn
+	dialAddr       string
+	conn           net.Conn
+	LoggedInStatus bool
+	exit           bool
 }
 
 func NewClient(dialAddr string) *Client {
 	return &Client{
-		dialAddr: dialAddr,
+		dialAddr:       dialAddr,
+		LoggedInStatus: false,
+		exit:           false,
 	}
 }
 
@@ -51,8 +56,41 @@ func (c *Client) readMessage(conn net.Conn) {
 		fmt.Println("invalid message")
 	}
 
-	// Print Response
-	fmt.Println(string(message))
+	// Handle Response
+	// fmt.Println(string(message))
+	switch {
+	case string(message) == "LOGIN_SUCCESS":
+		c.LoggedInStatus = true
+
+	case string(message) == "LOGIN_DENIED":
+		c.LoggedInStatus = false
+
+	case len(message) > 6 && string(message)[:7] == "LISTAUC":
+		substrings := strings.Split(string(message)[7:], "&")
+		// Print the substrings
+		for _, s := range substrings {
+			fmt.Println(s)
+		}
+	case string(message) == "PLACEBID_DENIED":
+		fmt.Println("There was an error placing your bid")
+
+	case len(message) >= 14 && string(message)[:14] == "GETWINNINGBIDS":
+		substrings := strings.Split(string(message)[14:], "&")
+		// Print the substrings
+		for _, s := range substrings {
+			fmt.Println(s)
+		}
+
+	case len(message) >= 10 && string(message)[:10] == "GETWINNERS":
+		substrings := strings.Split(string(message)[10:], "&")
+		// Print the substrings
+		for _, s := range substrings {
+			fmt.Println(s)
+		}
+
+	default:
+		fmt.Println("")
+	}
 }
 
 func (c *Client) sendMessage(command string, data string) {

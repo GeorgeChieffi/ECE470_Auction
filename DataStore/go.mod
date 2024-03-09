@@ -1,4 +1,4 @@
-module github.com/GeorgeChieffi/AuctionSite/Server
+module DataStore/m
 
 go 1.22.0
 

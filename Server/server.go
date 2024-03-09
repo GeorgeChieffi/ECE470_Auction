@@ -7,6 +7,21 @@ import (
 	"net"
 )
 
+type MyConn struct {
+	conn           net.Conn
+	loggedInStatus bool
+	msgch          chan Message
+	user           User
+}
+
+func newConnection(conn net.Conn, loggedInStatus bool) *MyConn {
+	return &MyConn{
+		conn:           conn,
+		loggedInStatus: loggedInStatus,
+		msgch:          make(chan Message, 10),
+	}
+}
+
 type Message struct {
 	Sender net.Conn
 	Type   string
@@ -22,17 +37,16 @@ func NewMessage(s net.Conn, t string, d string) *Message {
 }
 
 type Server struct {
-	listenAddr string
-	ln         net.Listener
-	quitch     chan struct{}
-	msgch      chan Message
+	listenAddr     string
+	ln             net.Listener
+	quitch         chan struct{}
+	currConnection MyConn
 }
 
 func NewServer(listenAddr string) *Server {
 	return &Server{
 		listenAddr: listenAddr,
 		quitch:     make(chan struct{}),
-		msgch:      make(chan Message, 10),
 	}
 }
 
@@ -48,7 +62,7 @@ func (s *Server) Start() error {
 	go s.acceptLoop()
 
 	<-s.quitch
-	close(s.msgch)
+	// close(s.MyConnCh)
 
 	return nil
 }
@@ -62,8 +76,9 @@ func (s *Server) acceptLoop() {
 		}
 
 		fmt.Println("new connection to the server: ", conn.RemoteAddr())
+		s.currConnection = *newConnection(conn, false)
 		// conn.Write(MakeRespose("Hello Client!").GenerateBinaryMessage())
-		go s.readLoop(conn)
+		go s.readLoop(s.currConnection.conn)
 	}
 }
 
@@ -115,7 +130,7 @@ func (s *Server) readLoop(conn net.Conn) {
 				continue
 			}
 
-			s.msgch <- Message{
+			s.currConnection.msgch <- Message{
 				Sender: conn,
 				Type:   string(command),
 				Data:   string(message),
@@ -130,9 +145,54 @@ func (s *Server) readLoop(conn net.Conn) {
 }
 
 func (s *Server) handleMessage() {
-	for m := range s.msgch {
-		fmt.Printf("[%s]%s: %s\n", m.Sender.RemoteAddr(), m.Type, m.Data)
-		fmt.Print("Sending Confirmation ...\n\n")
-		m.Sender.Write(MakeRespose("Recieved your command " + m.Type).GenerateBinaryMessage())
+	for m := range s.currConnection.msgch {
+
+		switch m.Type {
+		case "LOGIN": // Login
+			s.handleLogin(m)
+
+		case "CREATEAUC": // Create Auction
+			if !s.currConnection.loggedInStatus {
+				m.Sender.Write(MakeRespose("You Must Login First").GenerateBinaryMessage())
+			}
+
+			s.handleCreateAuc(m)
+
+		case "LISTAUC": // List Pending Auctions
+			if !s.currConnection.loggedInStatus {
+				m.Sender.Write(MakeRespose("You Must Login First").GenerateBinaryMessage())
+			}
+
+			s.handleListAuc(m)
+
+		case "PLACEBID": // Place Bid
+			if !s.currConnection.loggedInStatus {
+				m.Sender.Write(MakeRespose("You Must Login First").GenerateBinaryMessage())
+			}
+
+			s.handlePlaceBid(m)
+
+		case "ENDAUC": // End Auction
+			if !s.currConnection.loggedInStatus {
+				m.Sender.Write(MakeRespose("You Must Login First").GenerateBinaryMessage())
+			}
+
+			s.handleEndAuc(m)
+		case "RETRIEVEBID": // Retrieve successful bids
+			if !s.currConnection.loggedInStatus {
+				m.Sender.Write(MakeRespose("You Must Login First").GenerateBinaryMessage())
+			}
+
+			s.handleRetrieveSuccBid(m)
+		case "RETRIEVEWINNERS": // Retrieve winners of your auctions
+			if !s.currConnection.loggedInStatus {
+				m.Sender.Write(MakeRespose("You Must Login First").GenerateBinaryMessage())
+			}
+
+			s.handleRetrieveAucWinners(m)
+		}
+		// fmt.Printf("[%s]%s: %s\n", m.Sender.RemoteAddr(), m.Type, m.Data)
+		// fmt.Print("Sending Confirmation ...\n\n")
+		// m.Sender.Write(MakeRespose("Recieved your command " + m.Type).GenerateBinaryMessage())
 	}
 }

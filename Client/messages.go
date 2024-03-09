@@ -26,6 +26,6 @@ func (m *Message) GenerateBinaryMessage() []byte {
 	binary.LittleEndian.PutUint16(CMDBuff, uint16(len(m.Type)))
 
 	bytes := append(append(append(dataBuff, CMDBuff...), []byte(m.Type)...), []byte(m.Data)...)
-
+	// fmt.Println(bytes)
 	return bytes
 }
